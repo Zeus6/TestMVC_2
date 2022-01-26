@@ -1,0 +1,78 @@
+plugins {
+    id 'groovy'
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.codehaus.groovy:groovy-all:3.0.8'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+    testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.0-groovy-3.0'
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.6.2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:2.6.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+sourceSets {
+
+    acceptanceTest {
+
+        groovy {
+
+            // So that we can compile against the business classes (GreeterService, ...):
+            compileClasspath += main.output
+            // So that we can compile against the libs used by the business classes:
+            compileClasspath += main.compileClasspath
+
+            // So that we can compile against the unit test classes (custom utilities fx):
+            compileClasspath += test.output
+            // So that we can compile against the libs used by the unit test classes (JUnit, Spring test support, ...):
+            compileClasspath += test.compileClasspath
+
+            // So that test- and business classes can be used at runtime:
+            runtimeClasspath += test.runtimeClasspath
+            srcDir file('src/acceptance-test/groovy')
+        }
+        resources.srcDir file('src/acceptance-test/resources')
+    }
+}
+
+test {
+
+    systemProperty 'com.athaydes.spockframework.report.showCodeBlocks', true
+    systemProperty 'com.athaydes.spockframework.report.outputDir', 'build/spock-reports/unit'
+
+}
+
+task verify(type: Test) {
+
+    // So that Gradle knows where the integration test classes are:
+    testClassesDirs = sourceSets.acceptanceTest.output.classesDirs
+    // So that Gradle knows which runtime class path to use:
+    classpath = sourceSets.acceptanceTest.runtimeClasspath
+
+    systemProperty 'com.athaydes.spockframework.report.showCodeBlocks', true
+    systemProperty 'com.athaydes.spockframework.report.outputDir', 'build/spock-reports/acceptance'
+
+    dependsOn 'test'
+    verify.mustRunAfter 'test'
+}
+
+task allTest(type: Test) {
+
+    systemProperties System.properties
+    dependsOn 'test'
+    dependsOn 'acceptanceTest'
+    verify.mustRunAfter 'test'
+}
